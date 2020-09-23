@@ -1,0 +1,112 @@
+```{r}
+library(mgcv)
+library(oddsratio)
+library(ROCR)
+library(dplyr)
+```
+
+```{r}
+logistic <- function(x) 1/(1+exp(-x))
+set.seed(123)
+setwd("~/Desktop/PhD study/Gout/analysis")
+df <- read.csv('df_final_v2.csv', stringsAsFactors = TRUE)
+categoricals <- c('ae_race', 'ae_gender', 'on_op_followup', 'onult', 'Grouped_CVD',
+                 'Grouped_cancer', 'Grouped_diabetes', 'gout_ipv_last_year', 'Grouped_CKD', 'Grouped_others','binary_aev_last_year','binary_aev_last_month','binary_aev_last_week', 'aev_last_year_minimum_3')
+continuous <- c('ae_age', 'ipv_last_year')
+df[categoricals] = lapply(df[categoricals], factor)
+train_index <- sample(1:nrow(df), 0.8 * nrow(df))
+test_index <- setdiff(1:nrow(df), train_index)
+train <- df[train_index,]
+test <- df[test_index,]
+```
+
+```{r}
+# model <- glm(admitted ~ ae_race+ae_gender+onult+on_op_followup+gout_ipv_last_year+binary_aev_last_year
+#              +Grouped_CVD+Grouped_cancer+Grouped_diabetes+Grouped_CKD+Grouped_others
+#              +ae_age, data=train,family = binomial)
+model <- glm(admitted ~ gout_ipv_last_year
+             +Grouped_CVD+Grouped_diabetes+Grouped_CKD
+             +ae_age, data=train,family = binomial(link='logit'))
+summary <- summary(model)
+summary
+```
+```{r}
+model
+```
+
+```{r, fig.width=4, fig.height=2}
+par(mfrow=c(1,2))
+train_predictions = logistic(predict.glm(model, train))
+train_label = train$admitted
+train_pred <- prediction(as.numeric(train_predictions), as.numeric(train_label))
+train_perf <- performance(train_pred, measure = "tpr", x.measure = "fpr")
+plot(train_perf@x.values[[1]], train_perf@y.values[[1]], col="orange", mgp=c(1.5,0,0),
+     xlab = "False Positive Rate",
+     ylab = "True Positive Rate",
+     cex.lab=0.8, xaxt="n",yaxt="n",type="l")
+axis(1, at = seq(0, 1, by = 0.1), las=0, cex.axis=0.5, mgp=c(0,0.2,0))
+axis(2, at = seq(0, 1, by = 0.1), las=1, cex.axis=0.5, mgp=c(0,0.8,0))
+train_auc_ROCR <- performance(train_pred, measure = "auc")@y.values[[1]]
+
+test_predictions = logistic(predict.glm(model, test))
+test_label = test$admitted
+test_pred <- prediction(as.numeric(test_predictions), as.numeric(test_label))
+test_perf <- performance(test_pred, measure = "tpr", x.measure = "fpr")
+plot(test_perf, add=TRUE, col='red')
+abline(a = 0, b = 1, col = 'blue', lty=2)
+test_auc_ROCR <- performance(test_pred, measure = "auc")@y.values[[1]]
+
+legend("bottomright",
+       c(paste("Train ", round(as.numeric(train_auc_ROCR), digits = 2)),
+         paste("Test  ", round(as.numeric(test_auc_ROCR), digits = 2))),
+       col = c("orange", 'red'),
+       lty = c(1,1), cex=0.5)
+
+# ------------------
+# 
+train_scores <- list()
+train_props <- list()
+train_length <- list()
+test_scores <- list()
+test_props <- list()
+test_length <- list()
+i <- 1
+train_deciles <- ntile(train_predictions, 10)
+for (val in seq(1,10,1)) {
+qt = which(train_deciles == val)
+prop = sum(train_label[qt]) / length(train_label[qt])
+score = mean(train_predictions[train_deciles == val])
+train_scores[[i]] <- score
+train_props[[i]] <- prop
+train_length[[i]] <- length(train_label[qt])
+i <- i + 1
+}
+
+i <- 1
+test_deciles <- ntile(test_predictions, 10)
+for (val in seq(1,10,1)) {
+qt = which(test_deciles == val)
+prop = sum(test_label[qt]) / length(test_label[qt])
+score = mean(test_predictions[test_deciles == val])
+test_scores[[i]] <- score
+test_props[[i]] <- prop
+test_length[[i]] <- length(test_label[qt])
+i <- i + 1
+}
+
+plot(train_scores, train_props, xlim = c(0,1), ylim = c(0,1)
+     , xaxt="n", yaxt="n"
+     , xlab="Mean Predicted Risk Score"
+     , ylab="Fraction of Positives", type='o',col='orange'
+     , cex = 1, cex.lab=0.8, mgp=c(1.5,0,0))
+lines(test_scores, test_props, cex = 1,col='red')
+points(test_scores, test_props, cex = 1, pch=2,col='red')
+axis(1, at = seq(0, 1, by = 0.1), las=0, cex.axis=0.5, mgp=c(0,0.2,0))
+axis(2, at = seq(0, 1, by = 0.1), las=1, cex.axis=0.5, mgp=c(0,0.8,0))
+abline(a = 0, b = 1, col = 'blue', lty=2)
+legend("bottomright",
+       c(paste("Train", round(mean((train_predictions - train_label)^2), digits=2)),
+         paste("Test ", round(mean((test_predictions - test_label)^2), digits=2))),
+       col = c('orange', 'red'),
+       pch = c(1,2), cex=0.5)
+```
