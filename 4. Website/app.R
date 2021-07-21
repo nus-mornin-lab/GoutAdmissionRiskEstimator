@@ -10,8 +10,8 @@
 library(shiny)
 library(shinyBS)
 
-model <- function(age, gout_ipv, cvd, ckd, db){
-    y <- -4.38810+1.09584*gout_ipv+0.58735*cvd+0.57009*db+0.79985*ckd+0.05133*age
+model <- function(age, gout_ipv, reliever, ckd, htx){
+    y <- -3.9497+1.4462*gout_ipv-0.7987*reliever+1.2073*htx+0.7642*ckd+0.0435*age
     return(1/(1 + exp(-y)))
 }
 
@@ -38,9 +38,9 @@ ui <- fluidPage(
                           # bsTooltip(id = "gout_ipv", title = "", 
                           #           placement = "right", trigger = "hover"),
                           selectInput("gout_ipv", "Hospitalized for gout within last year",c("No","Yes")),
-                          selectInput("cvd", "Cardiovascular Disease",c("No","Yes")),
+                          selectInput("reliever", "Received gout flare medications within last year",c("No","Yes")),
                           selectInput("ckd", "Chronic Kidney Disease",c("No","Yes")),
-                          selectInput("db", "Diabetes and Complications",c("No","Yes")),
+                          selectInput("htx", "Hypertension",c("No","Yes")),
                           verbatimTextOutput('score')),
                    column(8,
                           p('To facilitate the
@@ -67,10 +67,10 @@ server <- function(input, output) {
     output$score <- renderText({
         age    <- as.numeric(input$age)
         gout_ipv <- as.numeric(if(input$gout_ipv == "No") 0 else 1)
-        cvd <- as.numeric(if(input$cvd == "No") 0 else 1)
+        reliever <- as.numeric(if(input$reliever == "No") 0 else 1)
         ckd <- as.numeric(if(input$ckd == "No") 0 else 1)
-        db <- as.numeric(if(input$db == "No") 0 else 1)
-        paste("Likelihood of admission:", toString(round(model(age, gout_ipv, cvd, ckd, db),2) * 100), "%")
+        htx <- as.numeric(if(input$htx == "No") 0 else 1)
+        paste("Likelihood of admission:", toString(round(model(age, gout_ipv, reliever, ckd, htx),2) * 100), "%")
     })
 }
 

@@ -1,18 +1,19 @@
 ```{r}
 library(mgcv)
 library(oddsratio)
+# library(ggplot2)
 library(ROCR)
 library(dplyr)
+library(car)
 ```
 
 ```{r}
 logistic <- function(x) 1/(1+exp(-x))
 set.seed(123)
 setwd("~/Desktop/PhD study/Gout/analysis")
-df <- read.csv('df_final_v2.csv', stringsAsFactors = TRUE)
-categoricals <- c('ae_race', 'ae_gender', 'on_op_followup', 'onult', 'Grouped_CVD',
-                 'Grouped_cancer', 'Grouped_diabetes', 'gout_ipv_last_year', 'Grouped_CKD', 'Grouped_others','binary_aev_last_year','binary_aev_last_month','binary_aev_last_week', 'aev_last_year_minimum_3')
-continuous <- c('ae_age', 'ipv_last_year')
+df <- read.csv('df_final_v3.csv', stringsAsFactors = TRUE)
+categoricals <- c('ae_race', 'ae_gender', 'eshtx', 'hyperlipidemia', 'on_op_followup', 'onult', 'onreliever', 'oncolchicine', 'Grouped_CVD', 'Grouped_cancer', 'Grouped_diabetes', 'gout_ipv_last_year', 'Grouped_CKD', 'Grouped_others','binary_aev_last_year','binary_aev_last_month','binary_aev_last_week', 'aev_last_year_minimum_3', 'lower_limb_joint', 'upper_limb_joint', 'joint_xray')
+continuous <- c('ae_age', 'ipv_last_year', 'number_of_comorbs', 'number_of_joints')
 df[categoricals] = lapply(df[categoricals], factor)
 train_index <- sample(1:nrow(df), 0.8 * nrow(df))
 test_index <- setdiff(1:nrow(df), train_index)
@@ -21,15 +22,18 @@ test <- df[test_index,]
 ```
 
 ```{r}
-# model <- glm(admitted ~ ae_race+ae_gender+onult+on_op_followup+gout_ipv_last_year+binary_aev_last_year
-#              +Grouped_CVD+Grouped_cancer+Grouped_diabetes+Grouped_CKD+Grouped_others
-#              +ae_age, data=train,family = binomial)
-model <- glm(admitted ~ gout_ipv_last_year
-             +Grouped_CVD+Grouped_diabetes+Grouped_CKD
-             +ae_age, data=train,family = binomial(link='logit'))
+vif(model)
+```
+
+```{r}
+model <- glm(admitted ~ ae_race+ae_gender+onult+onreliever+lower_limb_joint+upper_limb_joint+joint_xray+on_op_followup+gout_ipv_last_year+binary_aev_last_year+eshtx+hyperlipidemia+Grouped_CVD+Grouped_cancer+Grouped_diabetes+Grouped_CKD+Grouped_others+ae_age+number_of_joints, data=train,family = binomial)
+# model <- glm(admitted ~ gout_ipv_last_year+onreliever
+#              +Grouped_CKD+eshtx
+#             +ae_age, data=train,family = binomial(link='logit'))
 summary <- summary(model)
 summary
 ```
+
 ```{r}
 model
 ```
@@ -109,4 +113,71 @@ legend("bottomright",
          paste("Test ", round(mean((test_predictions - test_label)^2), digits=2))),
        col = c('orange', 'red'),
        pch = c(1,2), cex=0.5)
+```
+
+
+```{r}
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+```
+
+
+```{r}
+plot1 <- plot_gam(model, pred='ae_age',
+                        xlab = 'Age',
+                        ylab = 'Partial effect')
+or_object1 <- or_gam(
+  data = train, model = model,
+  pred = "ae_age", values = c(40,41)
+)
+
+plot_object2 <- plot_gam(model, pred='aev_last_year',
+                        xlab = '# of A&E visits',
+                        ylab = 'Partial effect')
+or_object2 <- or_gam(
+  data = train, model = model,
+  pred = "aev_last_year", values = c(0,1)
+)
+
+plot2 <- insert_or(plot_object2, or_object2,
+                  or_yloc = 3,
+                  arrow_length = 0.02,
+                  arrow_col = "red",
+                  arrow_yloc = 1
+)
+
+multiplot(plot1, plot2, cols=2)
 ```

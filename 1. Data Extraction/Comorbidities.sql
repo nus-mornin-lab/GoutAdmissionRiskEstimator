@@ -1,3 +1,4 @@
+drop table cohort_with_comor;
 create table cohort_with_comor as
 -- ----------Heart Failure----------
 WITH hf AS (
@@ -6,11 +7,53 @@ WITH hf AS (
     FROM
         full_all_diagnosis ad
     WHERE
-        ad."Diagnosis_Code" IN ('I110', 'I500', 'I509', '428', '4280', '40291', '4281', '4289', '40201', '40211', 'I130', 'I132')
+        ad."Diagnosis_Code" ilike any(ARRAY['I110%', 'I500%', 'I509%', '428%',
+							'40291%',
+							'40201%', '40211%', 'I130%', 'I132%'])
     group BY
         "Patient_NRIC"
 ),
 -- ----------Heart Failure----------
+
+-- ----------hypertension----------
+hypertension AS (
+    SELECT
+        "Patient_NRIC", min(to_Date("Date", 'DD/MM/YYYY')) as minDate
+    FROM
+        full_all_diagnosis ad
+    WHERE
+        ad. "Diagnosis_Code" ilike any(array['I10%', 'I11%', 'I12%', 'I13%',
+								'I15%', 'I16%', '401%', '402%', '403%', '404%', '405%'])
+    group BY
+        "Patient_NRIC"
+),
+-- ----------hypertension----------
+
+-- ----------essential hypertension----------
+eshtx AS (
+    SELECT
+        "Patient_NRIC", min(to_Date("Date", 'DD/MM/YYYY')) as minDate
+    FROM
+        full_all_diagnosis ad
+    WHERE
+        ad. "Diagnosis_Code" ilike any(array['I10%', '401%'])
+    group BY
+        "Patient_NRIC"
+),
+-- ----------essential hypertension----------
+
+-- ----------hyperlipidemia----------
+hyperlipidemia AS (
+    SELECT
+        "Patient_NRIC", min(to_Date("Date", 'DD/MM/YYYY')) as minDate
+    FROM
+        full_all_diagnosis ad
+    WHERE
+        ad."Diagnosis_Code" ilike any(array['E782%', 'E785%', '2722%', '2724%'])
+    group BY
+        "Patient_NRIC"
+),
+-- ----------hyperlipidemia----------
 
 -- -- ----------Kidney----------
 kd_diag AS (
@@ -19,7 +62,11 @@ kd_diag AS (
     FROM
         full_all_diagnosis ad
     WHERE
-        ad. "Diagnosis_Code" IN ('N181', 'N182', 'N183', 'N184', 'N185', 'N189', '585', '5850', '586', '5860', '5889', 'E8791', 'I120','I131', 'I132', 'T861', 'V420', 'Y841', 'Z940')
+        ad. "Diagnosis_Code" ilike any(array['N181%', 'N182%', 'N183%', 'N184%',
+								'N185%', 'N189%', '585%', '5850%',
+								'586%', '5860%', '5889%', 'E8791%',
+								'I120%','I131%', 'I132%', 'T861%',
+								'V420%', 'Y841%', 'Z940%'])
     group BY
         "Patient_NRIC"
 ),
@@ -128,6 +175,18 @@ SELECT pc.*,
            WHEN hf.minDate <= "aedisdate" THEN 1
            ELSE 0
        END AS heartfailure,
+	   CASE
+           WHEN hypertension.minDate <= "aedisdate" THEN 1
+           ELSE 0
+       END AS htx,
+	   CASE
+           WHEN eshtx.minDate <= "aedisdate" THEN 1
+           ELSE 0
+       END AS eshtx,
+	   CASE
+           WHEN hyperlipidemia.minDate <= "aedisdate" THEN 1
+           ELSE 0
+       END AS hyperlipidemia,
        CASE
            WHEN kd_diag.minDate <= "aedisdate" THEN 1
            ELSE 0
@@ -158,6 +217,9 @@ SELECT pc.*,
        END AS db_glu
 FROM cohort pc
 LEFT JOIN hf ON hf."Patient_NRIC" = pc. "ae_nric"
+LEFT JOIN eshtx on eshtx."Patient_NRIC" = pc. "ae_nric"
+LEFT JOIN hypertension ON hypertension."Patient_NRIC" = pc. "ae_nric"
+LEFT JOIN hyperlipidemia ON hyperlipidemia."Patient_NRIC" = pc. "ae_nric"
 LEFT JOIN kd_diag ON kd_diag. "Patient_NRIC" = pc. "ae_nric"
 LEFT JOIN kd_bill ON kd_bill. "Patient_NRIC" = pc. "ae_nric"
 LEFT JOIN kd_lab ON kd_lab."Patient_NRIC" = pc. "ae_nric"

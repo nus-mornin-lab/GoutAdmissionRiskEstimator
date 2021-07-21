@@ -25,7 +25,7 @@ when "Diagnosis_Code" ~~* ANY('{531%,532%,533%,534%,K25%,K26%,K27%,K28%}')
 then 'peptic_ulcer'
 when "Diagnosis_Code" ~~* ANY('{5712%,5714%,5715%,5716%,K702%,K703%,K73%,K717%,K740%,K742%,K746%,K743%,K744%,K745%}')
 then 'liver_disease'
-when "Diagnosis_Code" ~~* ANY('{2500%, 2501%,2502%,2503%,2507%,E109%,E119%,E139%,E149%,E101%,E111%,E131%,E141%,E105%,E115%,E135%,E145%}')
+when "Diagnosis_Code" ~~* ANY('{2500%,2501%,2502%,2503%,2507%,E109%,E119%,E139%,E149%,E101%,E111%,E131%,E141%,E105%,E115%,E135%,E145%}')
 then 'diabetes'
 when "Diagnosis_Code" ~~* ANY('{2504%,2505%,2506%,E102%,E112%,E132%,E142 E103%,E113%,E133%,E143%,E104%,E114%,E134%,E144%}')
 then 'diabetes_complications'
