@@ -9,13 +9,14 @@
 
 library(shiny)
 library(shinyBS)
+library(rsconnect)
 
 model <- function(age, gout_ipv, reliever, ckd, htx){
-    y <- -3.9497+1.4462*gout_ipv-0.7987*reliever+1.2073*htx+0.7642*ckd+0.0435*age
+    y <- -3.99406+1.39497*gout_ipv-0.61579*reliever+1.21515*htx+0.77078*ckd+0.04405*age
     return(1/(1 + exp(-y)))
 }
 
-# Define UI for application that draws a histogram
+# Define UI for application
 ui <- fluidPage(
     
     tags$title(HTML("Gout Admission Risk Estimator")),
@@ -76,3 +77,4 @@ server <- function(input, output) {
 
 # Run the application 
 shinyApp(ui = ui, server = server)
+# run deployApp() from the console
